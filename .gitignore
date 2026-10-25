@@ -1,0 +1,10 @@
+.DS_Store
+*~
+.*.swp
+*.swp
+.~lock.*#
+*.log
+.claude-plugin/types/
+**/.claude-plugin/types/
+.mcpb-cache/
+node_modules/

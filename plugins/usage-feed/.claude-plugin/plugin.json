@@ -1,0 +1,16 @@
+{
+  "name": "usage-feed",
+  "version": "1.0.0",
+  "description": "Sends your Claude Code plan usage and each session's state to upMonitor, over a socket on your Mac.",
+  "author": { "name": "Halfmarble LLC" },
+  "license": "MIT",
+  "types": "./types/index.d.ts",
+  "userConfig": {
+    "extraBundleIds": {
+      "type": "string",
+      "title": "Extra bundle IDs",
+      "description": "Comma-separated bundle IDs of other upMonitor builds to feed as well (four at most)",
+      "default": ""
+    }
+  }
+}

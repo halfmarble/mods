@@ -1,0 +1,12 @@
+{
+  "name": "halfmarble",
+  "owner": { "name": "Halfmarble LLC" },
+  "description": "Claude Code mods by Halfmarble LLC.",
+  "plugins": [
+    {
+      "name": "usage-feed",
+      "source": "./plugins/usage-feed",
+      "description": "Sends your Claude Code plan usage and each session's state to upMonitor, over a socket on your Mac."
+    }
+  ]
+}
