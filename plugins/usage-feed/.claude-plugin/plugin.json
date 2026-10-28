@@ -1,6 +1,6 @@
 {
   "name": "usage-feed",
-  "version": "1.0.0",
+  "version": "1.3.0",
   "description": "Sends your Claude Code plan usage and each session's state to upMonitor, over a socket on your Mac.",
   "author": { "name": "Halfmarble LLC" },
   "license": "MIT",
