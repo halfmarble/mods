@@ -21,6 +21,7 @@ import {
   type Tabs,
   type UpdateResult,
   afterClear,
+  applyHandoff,
   applyWord,
   buildEnd,
   buildRecord,
@@ -29,6 +30,7 @@ import {
   classifyExit,
   classifyReject,
   emptySnap,
+  isHandoff,
   nextTabs,
   marketplaceFailure,
   parseReply,
@@ -65,6 +67,8 @@ const effortStep = (e: unknown): Step => snap => {
 }
 
 const wordStep = (agentId: string | undefined, word: Word | null): Step => (snap, nowS) => applyWord(snap, agentId, word, nowS)
+
+const handoffStep = (flag: boolean): Step => snap => applyHandoff(snap, flag)
 
 const titleStep = (title: unknown): Step => snap => (typeof title === 'string' && title !== '' && title !== snap.title ? { ...snap, title } : null)
 
@@ -458,7 +462,11 @@ export const register: Register = (on, options) => {
 
   }).catch((_, e, next) => next(e))
   on('classic.Stop', async ($, e, next) => {
-    await observe($, ctx, steps(effortStep(e), agentOf(e) ? () => null : wordStep(undefined, 'idle')))
+    await observe($, ctx, steps(
+      effortStep(e),
+      // Only the yes or no is kept; nothing of the reply is stored, logged or sent
+      agentOf(e) ? () => null : steps(wordStep(undefined, 'idle'), handoffStep(isHandoff((e as { last_assistant_message?: unknown }).last_assistant_message))),
+    ))
     return next(e)
 
   }).catch((_, e, next) => next(e))

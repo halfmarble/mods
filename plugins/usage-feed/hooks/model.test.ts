@@ -2,6 +2,7 @@ import { expect, mock, test } from 'claude-code/testing'
 import {
   AGENT_BUSY_MAX_AGE_S,
   afterClear,
+  applyHandoff,
   agentKey,
   agentsToSend,
   applyWord,
@@ -12,6 +13,7 @@ import {
   classifyExit,
   classifyReject,
   emptySnap,
+  isHandoff,
   fnv1a64,
   lastPart,
   nextTabs,
@@ -170,7 +172,7 @@ test('pure: state changes', () => {
   expect(applyWord(s1, 'lead@team-x', 'busy', 6)?.agents).toEqual({ h51b7d7b2747dec59: 'busy 6' })
   expect(s2.main).toBe('busy 5')
   const cleared = afterClear({ ...s2, title: 'T', effort: 'max', seq: 4, interactive: true }, 50)
-  expect(cleared).toEqual({ seq: 4, main: 'idle 50', agents: {}, effort: 'max', title: null, interactive: true })
+  expect(cleared).toEqual({ seq: 4, main: 'idle 50', agents: {}, effort: 'max', title: null, interactive: true, handoff: false })
 })
 
 test('pure: agents sent: old busy dropped, 64 latest kept', () => {
@@ -207,7 +209,7 @@ test('pure: the record and the end message', () => {
   expect('rate_limits' in r).toBe(false)
   const r2 = buildRecord({ ...base, usage: { ...base.usage, rateLimits: [{ kind: 'five_hour', percentUsed: 1 }, { kind: 'x', percentUsed: 2 }] } })
   expect(r2.rate_limits).toEqual({ five_hour: { used_percentage: 1, resets_at: null } })
-  expect(buildEnd(3, 'sid')).toEqual({ v: 1, kind: 'end', seq: 3, mod: '1.3.0', session_id: 'sid' })
+  expect(buildEnd(3, 'sid')).toEqual({ v: 1, kind: 'end', seq: 3, mod: '1.4.0', session_id: 'sid' })
 })
 
 // ---------------------------------------------------------------- the hooks and the sender
@@ -223,7 +225,7 @@ test('start: the first update has main null and the whole record', async ($, on)
   expect(s.init.method).toBe('POST')
   expect(s.init.headers['content-type']).toBe('application/json')
   expect(Object.keys(s.body)).toEqual(['v', 'kind', 'seq', 'mod', 'reads_tabs', 'can_update', 'interactive', 'record', 'state'])
-  expect(s.body).toMatchObject({ v: 1, kind: 'update', seq: 1, mod: '1.3.0', interactive: true, state: { main: null, agents: {} } })
+  expect(s.body).toMatchObject({ v: 1, kind: 'update', seq: 1, mod: '1.4.0', interactive: true, state: { main: null, agents: {} } })
   expect(s.body.record).toEqual({
     v: 1,
     written_at: NOW / 1000,
@@ -924,7 +926,7 @@ test('tabs pure: reads_tabs and tabs in the update; tabs past 16,000 bytes are d
   expect(buildUpdate(snap, true, rec, 1)).not.toHaveProperty('reads_tabs')
   expect(buildUpdate(snap, true, rec, 1)).not.toHaveProperty('tabs')
   const small = buildUpdate(snap, true, rec, 1, true, { read_at: 5, ...TABS })
-  expect(small).toMatchObject({ mod: '1.3.0', reads_tabs: true, tabs: { read_at: 5, ...TABS } })
+  expect(small).toMatchObject({ mod: '1.4.0', reads_tabs: true, tabs: { read_at: 5, ...TABS } })
   expect(updateText(small)).toEqual({ text: JSON.stringify(small), droppedTabs: false })
   const big = buildUpdate(snap, true, rec, 1, true, {
     read_at: 5,
@@ -1442,4 +1444,76 @@ test('wait pure: the constants', () => {
   expect(WAIT_RACE_MS).toBe(28000)
   expect(TTY_SCRIPT[0]).toBe('/bin/sh')
   expect(TTY_SCRIPT[2]).toContain('ps -o tty= -p $PPID')
+})
+
+test('pure: isHandoff', () => {
+  expect(isHandoff('Everything is committed. Start it in `~/work/alpha` with:\n\n```\nContinue step 2.\n```\n\nSources: x')).toBe(true)
+  expect(isHandoff('Start the next session in `~/work/beta` with:\n\n```\nLand stage 2.\n```')).toBe(true)
+  expect(isHandoff('If you want a fresh session, start it in `~/work/beta` with:\n\n```\nTake the next item.\n```')).toBe(true)
+  expect(isHandoff('Otherwise, start fresh with:\n\n```text\ncd ~/x\nContinue.\n```')).toBe(true)
+  expect(isHandoff('Start a new session in `~/work/beta` with this prompt:\n\n```\nGo on.\n```')).toBe(true)
+  expect(isHandoff('Saved. Prompt for the next session:\n\n```\nGo on.\n```')).toBe(true)
+  expect(isHandoff('For your next task, start a fresh session in `~/work/beta`:\n\n```\nGo on.\n```')).toBe(true)
+  expect(isHandoff('Starting prompt:\n```\nGo on.\n```')).toBe(true)
+  expect(isHandoff('1. In a new Terminal tab, start the test session:\n\n```\ncd ~/x\n```')).toBe(false)
+  expect(isHandoff('You can close it right now without a new session by typing this here:\n\n```\ngit push\n```')).toBe(false)
+  expect(isHandoff('Type this at the prompt:\n\n```\n/reload-plugins\n```')).toBe(false)
+  expect(isHandoff('In session A, type:\n\n```\nhi\n```')).toBe(false)
+  expect(isHandoff('You can confirm it yourself with:\n\n```bash\ngit status\n```')).toBe(false)
+  expect(isHandoff('Either file comes back with:\n\n```\ngit show a:b\n```')).toBe(false)
+  expect(isHandoff('Proven it can fail: it failed with:\n\n```\nXCTAssertTrue failed\n```')).toBe(false)
+  expect(isHandoff('Start the server with:\n\n```bash\nnpm start\n```')).toBe(false)
+  expect(isHandoff('Start a new session with: the prompt below.')).toBe(false)
+  expect(isHandoff('')).toBe(false)
+  expect(isHandoff(undefined)).toBe(false)
+  expect(isHandoff(42)).toBe(false)
+})
+
+test('states: a Stop whose reply hands off sends handoff until the next prompt', async ($, on) => {
+  const w = wire(on)
+  await start($)
+  await w.clock.settle()
+  const handoff = 'Start the next session in `~/work/beta` with:\n\n```\nGo on.\n```'
+  const seen: string[] = []
+  const steps = [
+    () => prompt($),
+    () => stop($, { last_assistant_message: handoff }),
+    () => turn($),
+    () => stop($, { agent_id: 'a1', last_assistant_message: 'Done.' }),
+    () => stopFail($),
+    () => prompt($),
+    () => stop($, { last_assistant_message: handoff }),
+    () => stop($, { last_assistant_message: 'Short reply.' }),
+  ]
+  for (const step of steps) {
+    const n = w.sent.length
+    await step()
+    await w.clock.settle()
+    seen.push(w.sent.length > n ? `${word(last(w).state.main)}/${last(w).state.handoff === true}` : 'no send')
+  }
+  expect(seen).toEqual(['busy/false', 'idle/true', 'no send', 'no send', 'no send', 'busy/false', 'idle/true', 'idle/false'])
+})
+
+test('pure: handoff in the snapshot', () => {
+  expect(emptySnap().handoff).toBe(false)
+  const idle = { ...emptySnap(), main: 'idle 5', handoff: true }
+  const busy = applyWord(idle, undefined, 'busy', 9)!
+  expect(busy.handoff).toBe(false)
+  expect(busy.main).toBe('busy 9')
+  expect(applyWord(idle, undefined, 'idle', 9)).toBe(null)
+  expect(applyWord(idle, undefined, 'waiting', 9)?.handoff).toBe(false)
+  expect(applyWord({ ...idle, main: 'busy 5' }, 'ag1', 'busy', 9)?.handoff).toBe(true)
+  const same = applyWord({ ...idle, main: 'idle 5' }, undefined, 'idle', 9)
+  expect(same).toBe(null)
+  const set = applyHandoff({ ...emptySnap(), main: 'idle 5' }, true)!
+  expect(set.handoff).toBe(true)
+  expect(set.main).toBe('idle 5')
+  expect(applyHandoff(set, true)).toBe(null)
+  const { handoff: _h, ...old } = emptySnap()
+  expect(applyHandoff(old, false)).toBe(null)
+  expect(afterClear(set, 50).handoff).toBe(false)
+  const rec = buildRecord({ nowMs: NOW, sessionId: 's', root: '/r/x', model: 'm', version: 'v', usage: { startedAt: NOW, context: { window: 1 }, rateLimits: [] }, title: null, effort: null })
+  expect(buildUpdate(set, true, rec, 1).state).toMatchObject({ handoff: true })
+  expect('handoff' in buildUpdate({ ...set, handoff: false }, true, rec, 1).state).toBe(false)
+  expect('handoff' in buildUpdate(old, true, rec, 1).state).toBe(false)
 })

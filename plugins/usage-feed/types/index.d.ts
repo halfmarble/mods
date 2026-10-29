@@ -10,6 +10,9 @@ export type UsageFeedSnap = {
   title: string | null
   // The session's isInteractive from session.start, null until the mod has seen it
   interactive: boolean | null
+  // Whether the main thread's last reply, at its last Stop, handed off to a new session (isHandoff); absent in snapshots
+  // saved by 1.3.0 and earlier, read as false
+  handoff?: boolean
 }
 
 declare module 'claude-code' {

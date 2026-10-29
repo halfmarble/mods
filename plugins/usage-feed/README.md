@@ -2,8 +2,8 @@
 
 A Claude Code mod that tells upMonitor (the paid macOS menu-bar app) how much of your Claude Code plan you have used
 and what each of your running sessions is doing. upMonitor shows the 5-hour and weekly limits and one bar per session,
-and a session's state: busy, ask (it waits for your answer), idle, or handoff (idle, and past 250,000 tokens of
-context or 16 hours: time for a new session).
+and a session's state: busy, ask (it waits for your answer), idle, or handoff (idle, and either its last reply hands
+off to a new session, or past 250,000 tokens of context or 16 hours: time for a new session).
 
 ## Install
 
@@ -45,14 +45,17 @@ For each session, about every 10 seconds and at each change:
 - the plan's 5-hour and weekly usage and when each resets;
 - Claude Code's version;
 - the session's state (busy, waiting, idle) and that of each subagent, by the subagent's id (an id that is not
-  1 to 64 letters and digits is sent as a hash), each with the second it began;
+  1 to 64 letters and digits is sent as a hash), each with the second it began, and whether the session's last reply
+  handed off to a new session (`handoff`), which the mod tells from Claude Code's last reply when a turn ends: a line
+  ending in ":" right before a plain or text code block (the prompt to start it with) that names a new, fresh or next
+  session, a start in a folder or a starting prompt, or ends "with:" and says start, session or fresh;
 - whether the session is interactive (a `claude -p` run is not);
 - whether the mod can read Terminal's tab titles (`reads_tabs`, below) and whether it can run an update (`can_update`, in
   Updates, below);
 - the mod's version, the message format's version, a sequence number and the time the message was made.
 
-It sends no prompt text, no tool input, no transcript and no file contents. When a session ends it sends one message
-saying so.
+It sends no prompt text, no tool input, no transcript and no file contents. It reads Claude's last reply when a turn
+ends only for that yes or no, and keeps nothing of it. When a session ends it sends one message saying so.
 
 ### Terminal's tab titles
 

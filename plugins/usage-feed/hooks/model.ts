@@ -4,7 +4,7 @@ import type { UsageFeedSnap } from '../types'
 
 export const RELEASE_BUNDLE_ID = 'com.halfmarblellc.upmonitor'
 // Keep equal to "version" in .claude-plugin/plugin.json
-export const MOD_VERSION = '1.3.0'
+export const MOD_VERSION = '1.4.0'
 export const WIRE_VERSION = 1
 export const HEARTBEAT_MS = 10000
 export const SEND_TIMEOUT_MS = 2000
@@ -61,7 +61,7 @@ export const TABS_SCRIPT = [
 
 export type Word = 'busy' | 'waiting' | 'idle'
 
-export const emptySnap = (): UsageFeedSnap => ({ seq: 0, main: null, agents: {}, effort: null, title: null, interactive: null })
+export const emptySnap = (): UsageFeedSnap => ({ seq: 0, main: null, agents: {}, effort: null, title: null, interactive: null, handoff: false })
 
 // "<word> <epoch seconds>"
 export const wordOf = (line: string | null | undefined): string | undefined => line?.split(' ')[0]
@@ -98,8 +98,12 @@ export const agentKey = (id: string): string => (/^[A-Za-z0-9]{1,64}$/.test(id) 
 export const applyWord = (snap: UsageFeedSnap, agentId: string | undefined, word: Word | null, nowS: number): UsageFeedSnap | null => {
   const line = word === null ? null : `${word} ${nowS}`
   if (agentId === undefined || agentId === '') {
-    if (line === null || wordOf(snap.main) === word) return null
-    return { ...snap, main: line }
+    if (line === null) return null
+    // A new turn (busy) or a question (waiting) ends the handoff; idle leaves it as the Stop step set it
+    const handoff = word === 'idle' ? (snap.handoff ?? false) : false
+    const sameHandoff = (snap.handoff ?? false) === handoff
+    if (wordOf(snap.main) === word) return sameHandoff ? null : { ...snap, handoff }
+    return { ...snap, main: line, handoff }
   }
   const key = agentKey(agentId)
   const agents = { ...snap.agents }
@@ -111,6 +115,31 @@ export const applyWord = (snap: UsageFeedSnap, agentId: string | undefined, word
     agents[key] = line
   }
   return { ...snap, agents }
+}
+
+// The snapshot with the handoff flag set, or null when it already holds that value
+export const applyHandoff = (snap: UsageFeedSnap, handoff: boolean): UsageFeedSnap | null => ((snap.handoff ?? false) === handoff ? null : { ...snap, handoff })
+
+// A line that ends "with" and says start, session or fresh ("Start the next session in `~/work` with:")
+const WITH_START = (line: string): boolean => /\bwith$/i.test(line) && /\b(?:start|session|fresh)/i.test(line)
+// A line that names a new, fresh or next session, a start in a folder, or the prompt to start one ("Prompt for the next
+// session:", "To start, open a new session in `~/work`:", "Starting prompt:")
+const NAMES_SESSION =
+  /\b(?:new|fresh|next)\b[^\n]*\bsession\b|\bsession\b[^\n]*\b(?:new|fresh|next)\b|\bstart\b[^\n]*\b(?:in|from)\s+[`~/]|\b(?:starting|suggested)\s+prompt\b|\bprompt\s+(?:for|to\s+start)\b|\bstart(?:ing)?\s+fresh\b/i
+// Steps of a test in other tabs, and a command typed here, are not a handoff
+const NOT_HANDOFF = /\bterminal tabs?\b|\bwithout\b[^\n]*\bsession\b/i
+
+// A reply that hands off to a new session: a line ending in ":" right before a plain or text code block, the prompt to
+// start it with, that is WITH_START or NAMES_SESSION and not NOT_HANDOFF. A block in another language ("Run it with:"
+// before a bash block), or a line that names no new session ("It failed with:"), is not one.
+export const isHandoff = (text: unknown): boolean => {
+  if (typeof text !== 'string') return false
+  const re = /^([^\n]*):[ \t]*\n(?:[ \t]*\n)*[ \t]*```(?:text|txt|plaintext)?[ \t]*\n/gim
+  for (const m of text.matchAll(re)) {
+    const line = m[1] ?? ''
+    if (WITH_START(line) || (NAMES_SESSION.test(line) && !NOT_HANDOFF.test(line))) return true
+  }
+  return false
 }
 
 // The agents a message carries: no busy one older than two hours, and the 64 with the latest epochs
@@ -204,7 +233,7 @@ export const buildUpdate = (
   can_update: true as const,
   interactive,
   record,
-  state: { main: snap.main, agents: agentsToSend(snap.agents, nowS) },
+  state: { main: snap.main, agents: agentsToSend(snap.agents, nowS), ...(snap.handoff === true ? { handoff: true as const } : {}) },
   ...(tabs !== null ? { tabs } : {}),
   ...(updateResult !== null ? { update_result: updateResult } : {}),
 })
@@ -220,7 +249,7 @@ export const updateText = (u: ReturnType<typeof buildUpdate>): { text: string; d
 export const buildEnd = (seq: number, sessionId: string) => ({ v: WIRE_VERSION, kind: 'end' as const, seq, mod: MOD_VERSION, session_id: sessionId })
 
 // The session's snapshot after /clear or a resume: the same process under a new id, main idle, no agents, no name
-export const afterClear = (snap: UsageFeedSnap, nowS: number): UsageFeedSnap => ({ ...snap, main: `idle ${nowS}`, agents: {}, title: null })
+export const afterClear = (snap: UsageFeedSnap, nowS: number): UsageFeedSnap => ({ ...snap, main: `idle ${nowS}`, agents: {}, title: null, handoff: false })
 
 // ---------------------------------------------------------------- Terminal's tab bar
 
