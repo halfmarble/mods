@@ -6,7 +6,7 @@
     {
       "name": "usage-feed",
       "source": "./plugins/usage-feed",
-      "description": "Sends your Claude Code plan usage and each session's state to upMonitor, over a socket on your Mac."
+      "description": "Sends your Claude Code plan usage and each session's state to devTopBars, over a socket on your Mac."
     }
   ]
 }

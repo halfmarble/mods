@@ -1,10 +1,11 @@
 # halfmarble mods
 
-Claude Code mods by Halfmarble LLC, in one marketplace named `halfmarble`.
+Claude Code mods by Halfmarble LLC, in one marketplace named `halfmarble`. These mods are made by Halfmarble LLC, which
+is not affiliated with, sponsored by or endorsed by Anthropic.
 
 | Mod | What it does |
 | --- | --- |
-| [`usage-feed`](plugins/usage-feed/) | Sends your Claude Code plan usage and each session's state to upMonitor, the macOS menu-bar app, over a socket on your Mac. |
+| [`usage-feed`](plugins/usage-feed/) | Sends your Claude Code plan usage and each session's state to devTopBars, the macOS menu-bar app, over a socket on your Mac. |
 
 ## Install
 

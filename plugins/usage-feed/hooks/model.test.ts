@@ -209,7 +209,7 @@ test('pure: the record and the end message', () => {
   expect('rate_limits' in r).toBe(false)
   const r2 = buildRecord({ ...base, usage: { ...base.usage, rateLimits: [{ kind: 'five_hour', percentUsed: 1 }, { kind: 'x', percentUsed: 2 }] } })
   expect(r2.rate_limits).toEqual({ five_hour: { used_percentage: 1, resets_at: null } })
-  expect(buildEnd(3, 'sid')).toEqual({ v: 1, kind: 'end', seq: 3, mod: '1.4.0', session_id: 'sid' })
+  expect(buildEnd(3, 'sid')).toEqual({ v: 1, kind: 'end', seq: 3, mod: '1.4.1', session_id: 'sid' })
 })
 
 // ---------------------------------------------------------------- the hooks and the sender
@@ -225,7 +225,7 @@ test('start: the first update has main null and the whole record', async ($, on)
   expect(s.init.method).toBe('POST')
   expect(s.init.headers['content-type']).toBe('application/json')
   expect(Object.keys(s.body)).toEqual(['v', 'kind', 'seq', 'mod', 'reads_tabs', 'can_update', 'interactive', 'record', 'state'])
-  expect(s.body).toMatchObject({ v: 1, kind: 'update', seq: 1, mod: '1.4.0', interactive: true, state: { main: null, agents: {} } })
+  expect(s.body).toMatchObject({ v: 1, kind: 'update', seq: 1, mod: '1.4.1', interactive: true, state: { main: null, agents: {} } })
   expect(s.body.record).toEqual({
     v: 1,
     written_at: NOW / 1000,
@@ -926,7 +926,7 @@ test('tabs pure: reads_tabs and tabs in the update; tabs past 16,000 bytes are d
   expect(buildUpdate(snap, true, rec, 1)).not.toHaveProperty('reads_tabs')
   expect(buildUpdate(snap, true, rec, 1)).not.toHaveProperty('tabs')
   const small = buildUpdate(snap, true, rec, 1, true, { read_at: 5, ...TABS })
-  expect(small).toMatchObject({ mod: '1.4.0', reads_tabs: true, tabs: { read_at: 5, ...TABS } })
+  expect(small).toMatchObject({ mod: '1.4.1', reads_tabs: true, tabs: { read_at: 5, ...TABS } })
   expect(updateText(small)).toEqual({ text: JSON.stringify(small), droppedTabs: false })
   const big = buildUpdate(snap, true, rec, 1, true, {
     read_at: 5,
@@ -1210,7 +1210,7 @@ test('tabs: nothing of a title is written to $.state', async ($, on) => {
   expect(JSON.stringify(w.saved)).not.toContain('fix_parser')
 })
 
-// ---------------------------------------------------------------- the update upMonitor asks for
+// ---------------------------------------------------------------- the update devTopBars asks for
 
 const tokenReply = (t: string, tabs = false) => ({ value: { status: 200, ok: true, text: JSON.stringify(tabs ? { tabs: true, update: t } : { update: t }) } })
 const updateRuns = (w: ReturnType<typeof wire>) => w.runs.filter(r => r.argv[0] === 'claude')

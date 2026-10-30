@@ -1,9 +1,11 @@
 # usage-feed
 
-A Claude Code mod that tells upMonitor (the paid macOS menu-bar app) how much of your Claude Code plan you have used
-and what each of your running sessions is doing. upMonitor shows the 5-hour and weekly limits and one bar per session,
+A Claude Code mod that tells devTopBars (the paid macOS menu-bar app) how much of your Claude Code plan you have used
+and what each of your running sessions is doing. devTopBars shows the 5-hour and weekly limits and one bar per session,
 and a session's state: busy, ask (it waits for your answer), idle, or handoff (idle, and either its last reply hands
 off to a new session, or past 250,000 tokens of context or 16 hours: time for a new session).
+
+usage-feed is made by Halfmarble LLC and is not affiliated with, sponsored by or endorsed by Anthropic.
 
 ## Install
 
@@ -32,9 +34,10 @@ The mod does not run when Claude Code starts with `--safe-mode` or when its sett
 
 ## What it sends
 
-Only to upMonitor, on your Mac, through a Unix socket inside upMonitor's own folder
-(`~/Library/Containers/com.halfmarblellc.upmonitor/Data/m.sock`). Nothing it sends leaves your Mac and nothing is written to
-disk. When upMonitor is not running the mod's attempt is refused at once and costs next to nothing.
+Only to devTopBars, on your Mac, through a Unix socket inside devTopBars' own folder
+(`~/Library/Containers/com.halfmarblellc.upmonitor/Data/m.sock`; the bundle ID keeps the app's earlier name).
+Nothing it sends leaves your Mac and nothing is written to disk. When devTopBars is not running the mod's attempt is
+refused at once and costs next to nothing.
 
 For each session, about every 10 seconds and at each change:
 
@@ -48,7 +51,8 @@ For each session, about every 10 seconds and at each change:
   1 to 64 letters and digits is sent as a hash), each with the second it began, and whether the session's last reply
   handed off to a new session (`handoff`), which the mod tells from Claude Code's last reply when a turn ends: a line
   ending in ":" right before a plain or text code block (the prompt to start it with) that names a new, fresh or next
-  session, a start in a folder or a starting prompt, or ends "with:" and says start, session or fresh;
+  session, a start in a folder or a starting prompt, and names no Terminal tab and no "without" before "session", or
+  ends "with:" and says start, session or fresh;
 - whether the session is interactive (a `claude -p` run is not);
 - whether the mod can read Terminal's tab titles (`reads_tabs`, below) and whether it can run an update (`can_update`, in
   Updates, below);
@@ -59,14 +63,15 @@ ends only for that yes or no, and keeps nothing of it. When a session ends it se
 
 ### Terminal's tab titles
 
-Only while upMonitor asks for it, the mod reads the titles of Terminal's tabs, so that upMonitor can list your sessions
-in the order of Terminal's tab bar. upMonitor asks only when its box "Sessions in Terminal's tab order" (in its Claude
-Code Setup window, off by default) is on, and then of one session at a time: the one whose tab opened first. It asks in
-the reply to the mod's own update, `{"tabs":true}`; every other reply is `{}`, and a session that is not asked reads
-nothing. Every update says `"reads_tabs": true`, so that upMonitor knows which sessions can be asked.
+Only while devTopBars asks for it, the mod reads the titles of Terminal's tabs, so that devTopBars can list your sessions
+in the order of Terminal's tab bar. devTopBars asks only when its switch "Sessions in Terminal's tab order" (in its
+"Usage feed setup" window, which Settings' button "Usage feed setup…" opens; off by default) is on, and then of one
+session at a time: the one whose tab opened first. It asks in the reply to the mod's own update, `{"tabs":true}`;
+every other reply is `{}`, and a session that is not asked reads nothing. Every update says `"reads_tabs": true`, so
+that devTopBars knows which sessions can be asked.
 
 While asked, the mod runs `/usr/bin/osascript` about every 2 seconds, with a 1.5 second limit, one run at a time, and
-asks System Events for the title of each tab of each Terminal window. When upMonitor stops asking, the reading stops and
+asks System Events for the title of each tab of each Terminal window. When devTopBars stops asking, the reading stops and
 is forgotten.
 
 From each title the mod keeps only two things, and sends only those: `n`, the session name the title shows, and `f`, the
@@ -109,14 +114,14 @@ out, as when another app's permission prompt for System Events is open.
 What it needs: Terminal's switch in Device Control and Data Access, and, the first time, the answer Allow to macOS's
 question whether Terminal may control System Events. Without them the sessions are listed in the order their tabs were
 opened and nothing else changes. A title is never logged, never written to disk and never sent whole; the reading is kept
-in the session's memory only, and, like everything the mod sends, it goes only to upMonitor on your Mac.
+in the session's memory only, and, like everything the mod sends, it goes only to devTopBars on your Mac.
 
 ### A click on a session's row
 
-When upMonitor's reply to a session's update says `"wait":true`, that session's mod keeps one `GET /v1/wait` open to
-upMonitor, which answers `{}` after about 25 seconds (the mod then asks again) or `{"select":true}` when you click that
-session's row in upMonitor's panel. On `{"select":true}` the mod brings that session's Terminal tab to the front. A
-refusal, an error, no answer, or an empty answer within a second of asking (upMonitor holding too many waits) ends the
+When devTopBars' reply to a session's update says `"wait":true`, that session's mod keeps one `GET /v1/wait` open to
+devTopBars, which answers `{}` after about 25 seconds (the mod then asks again) or `{"select":true}` when you click that
+session's row in devTopBars' panel. On `{"select":true}` the mod brings that session's Terminal tab to the front. A
+refusal, an error, no answer, or an empty answer within a second of asking (devTopBars holding too many waits) ends the
 waiting until a later reply says `"wait":true` again, and never sooner than 10 seconds after.
 
 It works only in Terminal. Once, on the first send that needs it, the mod runs
@@ -148,7 +153,7 @@ logged, stored or sent. The first run may make macOS ask whether Terminal's chil
 
 ## Updates
 
-upMonitor can tell you that a newer usage-feed exists and ask whether to update it. Only when you answer Update, upMonitor
+devTopBars can tell you that a newer usage-feed exists and ask whether to update it. Only when you answer Update, devTopBars
 sends one session at a time, at most three, a token (16 hex digits) in the reply to that session's own update, and that session's mod runs two
 commands, one after the other, each with a 120 second limit:
 
@@ -184,7 +189,7 @@ titles, the update and the click above, `$.process.run`.
 
 ## Options
 
-`extraBundleIds`: a comma-separated list of other upMonitor builds' bundle IDs to feed as well, four at most, each made
+`extraBundleIds`: a comma-separated list of other devTopBars builds' bundle IDs to feed as well, four at most, each made
 of letters, digits, dots and dashes. Empty by default; the release app's ID is always fed. Set it at install:
 
 ```

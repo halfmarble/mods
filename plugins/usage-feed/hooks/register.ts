@@ -1,5 +1,5 @@
 // usage-feed: keeps each Claude Code session's state from its events and sends it, with the plan's usage, to
-// upMonitor over a Unix socket inside upMonitor's own folder. Every hook only observes: it records what it saw and
+// devTopBars over a Unix socket inside devTopBars' own folder. Every hook only observes: it records what it saw and
 // returns what the hooks beneath returned. The classic hooks carry a `.catch` that only passes the event on, so one
 // that fails (or overruns its time) leaves the event as the hooks beneath made it; the others are not gating.
 import type { Register, EngineInterface } from 'claude-code'
@@ -94,13 +94,13 @@ type Ctx = {
   closed: boolean
   timer: { cancel: () => void } | null
   tail: Promise<unknown>
-  // Terminal's tab bar, read only while upMonitor asks; kept in module memory, never in $.state
+  // Terminal's tab bar, read only while devTopBars asks; kept in module memory, never in $.state
   reader: { asked: boolean; busy: boolean; slow: boolean; lastMs: number; timer: { cancel: () => void } | null; tabs: Tabs | null }
   // Updates sent without tabs because they would pass 16,000 bytes
   tabsDropped: number
-  // The update upMonitor asks for: one run at a time, each token once, the outcome kept for every later message
+  // The update devTopBars asks for: one run at a time, each token once, the outcome kept for every later message
   update: { busy: boolean; done: Set<string>; result: UpdateResult | null }
-  // A click on this session's row in upMonitor's panel: its tty (a promise, started on the first send that needs it; null
+  // A click on this session's row in devTopBars' panel: its tty (a promise, started on the first send that needs it; null
   // where there is none to use), one wait loop per app, when each last failed, and whether a select runs. Kept in module memory, never in $.state.
   wait: { tty: Promise<string | null> | null; loops: Map<string, boolean>; failedAt: Map<string, number>; selecting: boolean }
 }
@@ -308,7 +308,7 @@ const readTabs = async ($: EngineInterface, ctx: Ctx): Promise<void> => {
   if (changed) kick($, ctx)
 }
 
-// The update upMonitor asked for with a token: the marketplace, then the plugin unless that failed. Run off the send's
+// The update devTopBars asked for with a token: the marketplace, then the plugin unless that failed. Run off the send's
 // path, never awaited and never rejecting; only the bounded fields of UpdateResult are kept, nothing of the output.
 // $.process.run is called as a method, as in readTabs (see READS_TABS).
 const runUpdate = async ($: EngineInterface, ctx: Ctx, token: string): Promise<void> => {

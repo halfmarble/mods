@@ -4,7 +4,7 @@ import type { UsageFeedSnap } from '../types'
 
 export const RELEASE_BUNDLE_ID = 'com.halfmarblellc.upmonitor'
 // Keep equal to "version" in .claude-plugin/plugin.json
-export const MOD_VERSION = '1.4.0'
+export const MOD_VERSION = '1.4.1'
 export const WIRE_VERSION = 1
 export const HEARTBEAT_MS = 10000
 export const SEND_TIMEOUT_MS = 2000
@@ -12,7 +12,7 @@ export const SEND_TIMEOUT_MS = 2000
 export const AGENT_BUSY_MAX_AGE_S = 7200
 export const AGENTS_MAX = 64
 export const EXTRA_IDS_MAX = 4
-// Reading Terminal's tab bar, only while upMonitor asks
+// Reading Terminal's tab bar, only while devTopBars asks
 export const TABS_MS = 2000
 export const TABS_SLOW_MS = 30000
 export const TABS_READ_TIMEOUT_MS = 1500
@@ -21,7 +21,7 @@ export const TABS_TABS_MAX = 48
 // n and f are cut to this many UTF-16 code units (JavaScript's string length)
 export const TAB_TEXT_MAX = 80
 export const ASK_TEXT_MAX_BYTES = 64
-// Waiting for a click on this session's row in upMonitor's panel: the app holds a GET up to 25 s, so the fetch is raced
+// Waiting for a click on this session's row in devTopBars' panel: the app holds a GET up to 25 s, so the fetch is raced
 // against a little more; selecting the session's Terminal tab, and the one read of its tty
 export const WAIT_RACE_MS = 28000
 export const SELECT_TIMEOUT_MS = 3000
@@ -214,7 +214,7 @@ export const buildRecord = (r: RecordIn) => {
 }
 
 // readsTabs: this mod can be asked to read Terminal's tab bar (true in every update). tabs: the reader's latest reading,
-// none for a non-reader. can_update: this mod can run an update when upMonitor sends a token (every update). updateResult:
+// none for a non-reader. can_update: this mod can run an update when devTopBars sends a token (every update). updateResult:
 // the outcome of the run that token started, kept in every update after it.
 export const buildUpdate = (
   snap: UsageFeedSnap,
@@ -406,7 +406,7 @@ export const selectScript = (tty: string): string[] => [
   '-e', 'end tell',
 ]
 
-// ---------------------------------------------------------------- the update upMonitor asks for
+// ---------------------------------------------------------------- the update devTopBars asks for
 
 export type UpdateResult = {
   token: string

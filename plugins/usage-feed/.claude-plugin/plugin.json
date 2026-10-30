@@ -1,7 +1,7 @@
 {
   "name": "usage-feed",
-  "version": "1.4.0",
-  "description": "Sends your Claude Code plan usage and each session's state to upMonitor, over a socket on your Mac.",
+  "version": "1.4.1",
+  "description": "Sends your Claude Code plan usage and each session's state to devTopBars, over a socket on your Mac.",
   "author": { "name": "Halfmarble LLC" },
   "license": "MIT",
   "types": "./types/index.d.ts",
@@ -9,7 +9,7 @@
     "extraBundleIds": {
       "type": "string",
       "title": "Extra bundle IDs",
-      "description": "Comma-separated bundle IDs of other upMonitor builds to feed as well (four at most)",
+      "description": "Comma-separated bundle IDs of other devTopBars builds to feed as well (four at most)",
       "default": ""
     }
   }
